@@ -1,0 +1,74 @@
+﻿@page "/copilot"
+@rendermode InteractiveServer
+
+@using Microsoft.AspNetCore.Authorization
+@using MudBlazor
+@* @attribute [Authorize] *@
+@inject HttpClient Http
+
+
+<MudPaper Class="pa-4" Elevation="4">
+    <MudTextField @bind-Value="UserPrompt"
+                  Label="Ask Copilot"
+                  Placeholder="Summarize NMLS in Mortgage Industry..."
+                  Immediate="true" />
+
+    <MudButton OnClick="CallCopilot"
+               Color="Color.Primary">
+        Send
+    </MudButton>
+
+    
+
+    <MudProgressCircular Indeterminate="true"
+                         Color="Color.Primary"
+                         Class="ml-2"
+                         Style="@GetDisplay" />
+
+    <MudDivider Class="my-4" />
+
+    @foreach (var msg in Messages)
+    {
+        <MudCard Class="mb-2 pa-2">
+            @msg
+        </MudCard>
+    }
+</MudPaper>
+
+@code {
+
+    private string? UserPrompt { get; set; }
+    private bool isLoading;
+
+    private List<string> Messages { get; } = new();
+
+    private string GetDisplay
+    {
+        get
+        {
+            return isLoading ? "display:inline-block" : "display:none";
+        }
+    }
+   
+    private async Task CallCopilot()
+    {
+        isLoading = true;
+        try
+        {
+            var resp = await Http.PostAsJsonAsync("api/copilot", new { prompt = UserPrompt });
+            var result = await resp.Content.ReadFromJsonAsync<BotResponse>();
+            Messages.Add(result.Text);
+            UserPrompt = "";
+        }
+        catch (Exception ex)
+        {
+            Messages.Add($"Error: {ex.Message}");
+        }   
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    record BotResponse(string Text);
+}
